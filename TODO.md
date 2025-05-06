@@ -1,2 +1,0 @@
--   min/max words don't seem to work
--   generated texts terminate on period when not given a terminator

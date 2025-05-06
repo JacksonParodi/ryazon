@@ -1,46 +1,127 @@
-use crate::markov::GenerationOptions;
+use crate::{
+    markov::{GenerationOptions, TrainingOptions},
+    ryazon::RyazonError,
+};
 use rand::Rng;
 use serde_json;
 use std::{
     collections::{HashMap, hash_map::Entry},
     fs::File,
-    path::PathBuf,
 };
 
 #[derive(Debug)]
 pub struct MarkovChain {
     chain: HashMap<Vec<String>, HashMap<String, usize>>,
-    order: usize,
+    order: u8,
 }
 
 impl MarkovChain {
-    pub fn new(order: usize, texts_path: PathBuf) -> Self {
+    pub fn new(opts: TrainingOptions) -> Self {
         let mut chain = MarkovChain {
             chain: HashMap::new(),
-            order,
+            order: opts.order,
         };
 
-        let texts: Vec<String> =
-            serde_json::from_reader(File::open(texts_path).expect("Failed to open JSON file"))
-                .expect("Failed to parse JSON");
+        // TODO: check what kind of JSON value the file is, convert it to Vec<String> if needed
 
-        chain.train(&texts);
+        let file = match File::open(&opts.path) {
+            Ok(file) => file,
+            Err(_) => {
+                eprintln!("failed to open JSON file: {:?}", opts.path);
+                std::process::exit(1)
+            }
+        };
+
+        let json_value: serde_json::Value = match serde_json::from_reader(file) {
+            Ok(value) => value,
+            Err(_) => {
+                eprintln!("failed to parse JSON file: {:?}", opts.path);
+                std::process::exit(1)
+            }
+        };
+
+        // TODO: more robust validation for wacky JSON data
+        let texts: Vec<String> = match json_value {
+            serde_json::Value::String(s) => vec![s],
+            serde_json::Value::Array(arr) => arr
+                .into_iter()
+                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                .collect(),
+            serde_json::Value::Object(obj) => obj
+                .values()
+                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                .collect(),
+            _ => {
+                eprintln!("unsupported JSON value type: {:?}", json_value);
+                std::process::exit(1)
+            }
+        };
+
+        chain.train(&texts, &opts);
         chain
     }
 
-    pub fn train(&mut self, texts: &[String]) {
+    pub fn train(&mut self, texts: &[String], opts: &TrainingOptions) {
+        // for text in texts {
+        //     self.add_text(text);
+        // }
+
+        let mut concatenated_text = String::new();
+
         for text in texts {
-            self.add_text(text);
+            if text.trim().is_empty() {
+                continue;
+            }
+
+            let mut words: Vec<String> =
+                text.split_whitespace().map(|s| s.to_lowercase()).collect();
+
+            if opts.remove_urls {
+                words.retain(|word| {
+                    !word.starts_with("http://")
+                        && !word.starts_with("https://")
+                        && !word.starts_with("www.")
+                });
+            }
+
+            if opts.remove_punctuation {
+                for word in &mut words {
+                    word.retain(|c| !c.is_ascii_punctuation());
+                }
+            }
+
+            if let Some(punctuator) = &opts.add_punctuation {
+                if !words
+                    .last()
+                    .unwrap()
+                    .chars()
+                    .last()
+                    .unwrap()
+                    .is_ascii_punctuation()
+                {
+                    let mut new_last_word = words.last().unwrap().clone();
+                    new_last_word.push_str(punctuator);
+                    words.pop();
+                    words.push(new_last_word);
+                }
+            }
+
+            concatenated_text.push_str(&words.join(" "));
+            concatenated_text.push_str(" ");
         }
+
+        self.add_text(&concatenated_text);
     }
 
     pub fn add_text(&mut self, text: &str) {
         let mut words: Vec<String> = text.split_whitespace().map(|s| s.to_lowercase()).collect();
 
-        if words.len() <= self.order {
+        if words.len() <= self.order.into() {
             return;
         }
 
+        // if the last word does not end with a punctuation mark, add a period
+        // possible make this a flag in the future
         if !words
             .last()
             .unwrap()
@@ -51,14 +132,16 @@ impl MarkovChain {
         {
             let mut new_last_word = words.last().unwrap().clone();
             new_last_word.push_str(".");
-
             words.pop();
             words.push(new_last_word);
         }
 
-        for i in 0..=words.len() - (self.order + 1) {
-            let state: Vec<String> = words[i..i + self.order].iter().cloned().collect();
-            let next_word = words[i + self.order].clone();
+        for i in 0..=words.len() - (usize::from(self.order) + 1) {
+            let state: Vec<String> = words[i..i + usize::from(self.order)]
+                .iter()
+                .cloned()
+                .collect();
+            let next_word = words[i + usize::from(self.order)].clone();
 
             match self.chain.entry(state) {
                 Entry::Occupied(mut entry) => {
@@ -74,9 +157,9 @@ impl MarkovChain {
         }
     }
 
-    pub fn generate(&self, opts: GenerationOptions) -> Option<String> {
+    pub fn generate(&self, opts: &GenerationOptions) -> Result<String, RyazonError> {
         if self.chain.is_empty() {
-            return None;
+            return Err(RyazonError::EmptyChain);
         }
 
         let mut rng = rand::rng();
@@ -120,8 +203,9 @@ impl MarkovChain {
         };
 
         let mut result: Vec<String> = current_state.clone();
+        let mut terminator_found = false;
 
-        for _ in 0..opts.max_words - self.order {
+        for _ in 0..opts.max_words - usize::from(self.order) {
             if let Some(next_words) = self.chain.get(&current_state) {
                 let total_count: usize = next_words.values().sum();
                 let mut random_val = rng.random_range(0..total_count);
@@ -139,7 +223,7 @@ impl MarkovChain {
 
                 if opts.terminator.is_some() && result.len() >= opts.min_words {
                     if selected_word.ends_with(opts.terminator.as_ref().unwrap()) {
-                        println!("terminator found in result: {}", result.join(" "));
+                        terminator_found = true;
                         break;
                     }
                 }
@@ -151,6 +235,18 @@ impl MarkovChain {
             }
         }
 
-        Some(result.join(" "))
+        match opts.terminator {
+            Some(ref _t) => {
+                if terminator_found {
+                    Ok(result.join(" "))
+                } else {
+                    Err(RyazonError::TerminatorNotFound(format!(
+                        "terminator '{}' not found in generated text",
+                        opts.terminator.as_ref().unwrap()
+                    )))
+                }
+            }
+            _ => Ok(result.join(" ")),
+        }
     }
 }

@@ -1,5 +1,8 @@
 mod chain;
 pub use chain::MarkovChain;
 
-mod opts;
-pub use opts::GenerationOptions;
+mod generation_opts;
+pub use generation_opts::GenerationOptions;
+
+mod training_opts;
+pub use training_opts::TrainingOptions;
