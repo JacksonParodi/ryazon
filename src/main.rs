@@ -10,7 +10,7 @@ use serde_json;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let matches = Command::new("ryazon")
-        .version("0.0")
+        .version("0.1.0")
         .author("jackson parodi")
         .about("a markov chain text generator")
         .arg(arg!(training_texts: <FILE> "path to the json file of texts"))
