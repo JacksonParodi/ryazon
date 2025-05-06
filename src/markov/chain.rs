@@ -62,10 +62,6 @@ impl MarkovChain {
     }
 
     pub fn train(&mut self, texts: &[String], opts: &TrainingOptions) {
-        // for text in texts {
-        //     self.add_text(text);
-        // }
-
         let mut concatenated_text = String::new();
 
         for text in texts {
