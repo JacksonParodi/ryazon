@@ -25,7 +25,7 @@ jobs:
 
         steps:
             - name: Checkout code
-              uses: actions/checkout@v3
+              uses: actions/checkout@v4
 
             - name: Install Rust
               uses: dtolnay/rust-toolchain@stable
@@ -49,8 +49,8 @@ jobs:
                   Copy-Item target\release\${{ matrix.artifact_name }} -Destination ${{ matrix.asset_name }}
               shell: pwsh
 
-            - name: Upload artifact
-              uses: actions/upload-artifact@v3
+            - name: Upload Release Binaries
+              uses: actions/upload-artifact@v4
               with:
                   name: ${{ matrix.asset_name }}
                   path: ${{ matrix.asset_name }}
@@ -61,14 +61,13 @@ jobs:
         needs: build
         steps:
             - name: Checkout code
-              uses: actions/checkout@v3
+              uses: actions/checkout@v4
 
             - name: Download all artifacts
-              uses: actions/download-artifact@v3
+              uses: actions/download-artifact@v4
 
             - name: Create Release
-              id: create_release
-              uses: softprops/action-gh-release@v1
+              uses: softprops/action-gh-release@v2
               with:
                   files: |
                       **/ryazon-linux-amd64
