@@ -6,6 +6,7 @@ pub struct GenerationOptions {
     pub terminator: Option<String>,
     pub max_words: usize,
     pub min_words: usize,
+    pub iterations: u16,
 }
 
 impl From<RyazonArgs> for GenerationOptions {
@@ -15,6 +16,7 @@ impl From<RyazonArgs> for GenerationOptions {
             terminator: args.terminator,
             max_words: args.max_words.unwrap_or(constant::DEFAULT_MAX_WORDS),
             min_words: args.min_words.unwrap_or(constant::DEFAULT_MIN_WORDS),
+            iterations: args.iterations.unwrap_or(constant::DEFAULT_ITERATIONS),
         }
     }
 }

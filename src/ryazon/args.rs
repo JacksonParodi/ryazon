@@ -12,6 +12,7 @@ pub struct RyazonArgs {
     pub max_words: Option<usize>,
     pub min_words: Option<usize>,
     pub terminator: Option<String>,
+    pub iterations: Option<u16>,
 
     pub remove_urls: bool,
     pub remove_punctuation: bool,
@@ -55,6 +56,17 @@ impl From<ArgMatches> for RyazonArgs {
             Some(t) => Some(t.to_string()),
             None => None,
         };
+        let iterations = match matches.get_one::<String>("iterations") {
+            Some(i) => match i.parse::<u16>() {
+                Ok(i) => Some(i),
+                Err(e) => {
+                    eprintln!("invalid iterations: {:?}", e);
+                    eprintln!("using default iterations value");
+                    None
+                }
+            },
+            None => None,
+        };
 
         let remove_urls = matches.get_flag("remove_urls");
         let remove_punctuation = matches.get_flag("remove_punctuation");
@@ -72,6 +84,7 @@ impl From<ArgMatches> for RyazonArgs {
             max_words,
             min_words,
             terminator,
+            iterations,
             remove_urls,
             remove_punctuation,
             add_punctuation,

@@ -23,6 +23,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .arg(arg!(remove_urls: -u --remove_urls "remove URL links from the training texts"))
         .arg(arg!(remove_punctuation: -p --remove_punctuation "remove all punctuation marks from the training texts"))
         .arg(arg!(add_punctuation: -a --add_punctuation [CHAR] "add punctuation to the end of each training text"))
+        .arg(arg!(iterations: -i --iterations [NUMBER] "number of iterations to generate from the markov chain"))
         .get_matches();
 
     let args = RyazonArgs::from(matches);
@@ -35,43 +36,51 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let chain = MarkovChain::new(train_opts);
 
-    let output = match chain.generate(&gen_opts) {
-        Ok(generated_text) => RyazonOutput::Success(generated_text),
-        Err(e) => match e {
-            RyazonError::TerminatorNotFound(e) => {
-                let mut result = RyazonOutput::Error(RyazonError::TerminatorNotFound(e.clone()));
+    let mut result_array: Vec<RyazonOutput> = Vec::new();
 
-                for i in 0..misc::constant::TERMINATOR_RETRY_LIMIT {
-                    if i >= misc::constant::TERMINATOR_RETRY_LIMIT - 1 {
-                        return Err(Box::new(RyazonError::TerminatorNotFound(e)));
-                    }
+    for _iteration in 0..gen_opts.iterations {
+        let output = match chain.generate(&gen_opts) {
+            Ok(generated_text) => RyazonOutput::Success(generated_text),
+            Err(e) => match e {
+                RyazonError::TerminatorNotFound(e) => {
+                    let mut result =
+                        RyazonOutput::Error(RyazonError::TerminatorNotFound(e.clone()));
 
-                    match chain.generate(&gen_opts) {
-                        Ok(generated_text) => {
-                            result = RyazonOutput::Success(generated_text);
+                    for i in 0..misc::constant::TERMINATOR_RETRY_LIMIT {
+                        if i >= misc::constant::TERMINATOR_RETRY_LIMIT - 1 {
+                            RyazonError::TerminatorNotFound(e);
                             break;
                         }
-                        Err(e) => match e {
-                            RyazonError::TerminatorNotFound(_msg) => {
-                                continue;
+
+                        match chain.generate(&gen_opts) {
+                            Ok(generated_text) => {
+                                result = RyazonOutput::Success(generated_text);
+                                break;
                             }
-                            _ => {
-                                return Err(Box::new(RyazonError::IoError(e.to_string())));
-                            }
-                        },
+                            Err(e) => match e {
+                                RyazonError::TerminatorNotFound(_msg) => {
+                                    continue;
+                                }
+                                _ => {
+                                    return Err(Box::new(RyazonError::IoError(e.to_string())));
+                                }
+                            },
+                        }
                     }
+
+                    result
                 }
+                RyazonError::IoError(err) => RyazonOutput::Error(RyazonError::IoError(err)),
+                _ => RyazonOutput::Error(RyazonError::IoError(
+                    std::io::Error::new(std::io::ErrorKind::Other, "unexpected error").to_string(),
+                )),
+            },
+        };
 
-                result
-            }
-            RyazonError::IoError(err) => RyazonOutput::Error(RyazonError::IoError(err)),
-            _ => RyazonOutput::Error(RyazonError::IoError(
-                std::io::Error::new(std::io::ErrorKind::Other, "unexpected error").to_string(),
-            )),
-        },
-    };
+        result_array.push(output);
+    }
 
-    let output_json = match serde_json::to_string_pretty(&output) {
+    let output_json = match serde_json::to_string_pretty(&result_array) {
         Ok(json) => json,
         Err(e) => {
             return Err(Box::new(RyazonError::IoError(e.to_string())));
@@ -88,13 +97,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 std::process::exit(1);
             }
         },
-        None => match output {
-            RyazonOutput::Success(generated_text) => {
-                return Ok(println!("{}", generated_text));
+        None => {
+            for element in result_array.iter() {
+                match element {
+                    RyazonOutput::Success(generated_text) => {
+                        println!("{}", generated_text);
+                    }
+                    RyazonOutput::Error(err) => {
+                        eprintln!("Error: {}", err);
+                    }
+                }
             }
-            RyazonOutput::Error(err) => {
-                return Err(Box::new(err));
-            }
-        },
+            Ok(())
+        }
     }
 }
