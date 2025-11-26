@@ -1,4 +1,4 @@
-use crate::{RyazonArgs, misc::constant};
+use crate::{misc::constant, ryazon::RyazonArgs};
 use std::path::PathBuf;
 
 pub struct TrainingOptions {

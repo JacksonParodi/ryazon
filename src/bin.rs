@@ -1,11 +1,9 @@
-mod markov;
-mod misc;
-mod ryazon;
-
-use markov::{GenerationOptions, MarkovChain, TrainingOptions};
-use ryazon::{RyazonArgs, RyazonError, RyazonOutput};
-
 use clap::{Command, arg};
+use ryazon::{
+    markov::{GenerationOptions, MarkovChain, TrainingOptions},
+    misc,
+    ryazon::{RyazonArgs, RyazonError, RyazonOutput},
+};
 use serde_json;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

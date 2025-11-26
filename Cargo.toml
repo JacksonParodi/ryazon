@@ -3,6 +3,14 @@ name = "ryazon"
 version = "0.1.8"
 edition = "2024"
 
+[lib]
+name = "ryazon"
+path = "src/lib.rs"
+
+[[bin]]
+name = "ryazon"
+path = "src/bin.rs"
+
 [dependencies]
 clap = { version = "4.5.37", features = ["color"] }
 rand = { version = "0.9.1", features = ["serde"] }
