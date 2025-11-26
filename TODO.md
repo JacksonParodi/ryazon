@@ -1,0 +1,1 @@
+- add filter for @ tags on discord, or similar functionality
