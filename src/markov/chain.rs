@@ -87,18 +87,20 @@ impl MarkovChain {
             }
 
             if let Some(punctuator) = &opts.add_punctuation {
-                if !words
-                    .last()
-                    .unwrap()
-                    .chars()
-                    .last()
-                    .unwrap()
-                    .is_ascii_punctuation()
-                {
-                    let mut new_last_word = words.last().unwrap().clone();
-                    new_last_word.push_str(punctuator);
-                    words.pop();
-                    words.push(new_last_word);
+                if words.len() > 0 {
+                    if !words
+                        .last()
+                        .unwrap()
+                        .chars()
+                        .last()
+                        .unwrap()
+                        .is_ascii_punctuation()
+                    {
+                        let mut new_last_word = words.last().unwrap().clone();
+                        new_last_word.push_str(punctuator);
+                        words.pop();
+                        words.push(new_last_word);
+                    }
                 }
             }
 
