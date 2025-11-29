@@ -20,3 +20,15 @@ impl From<RyazonArgs> for GenerationOptions {
         }
     }
 }
+
+impl Default for GenerationOptions {
+    fn default() -> Self {
+        Self {
+            seed: Some("default_seed".to_string()),
+            terminator: None,
+            max_words: constant::DEFAULT_MAX_WORDS,
+            min_words: constant::DEFAULT_MIN_WORDS,
+            iterations: constant::DEFAULT_ITERATIONS,
+        }
+    }
+}

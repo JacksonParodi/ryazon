@@ -20,3 +20,15 @@ impl From<RyazonArgs> for TrainingOptions {
         }
     }
 }
+
+impl Default for TrainingOptions {
+    fn default() -> Self {
+        Self {
+            order: constant::DEFAULT_ORDER,
+            path: PathBuf::new(),
+            remove_urls: true,
+            remove_punctuation: false,
+            add_punctuation: None,
+        }
+    }
+}
